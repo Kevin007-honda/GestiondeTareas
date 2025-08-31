@@ -33,6 +33,12 @@ if (!defined('ROOT_PATH')) {
                         <span>Gestión de Materias</span>
                     </a>
                 </li>
+                <li>
+                    <a class="d-flex align-items-center" href="<?= BASE_URL ?>?page=notifications&role=admin">
+                        <i class="fa-solid fa-bell fa-fw"></i>
+                        <span>Notificaciones</span>
+                    </a>
+                </li>
             </ul>
         </div>
         <div class="log-out">

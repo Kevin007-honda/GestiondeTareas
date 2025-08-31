@@ -175,4 +175,25 @@ class Materia {
         
         return $result->fetch_all(MYSQLI_ASSOC);
     }
+
+    /**
+     * Obtiene las materias asignadas a un estudiante específico
+     * @param int $estudianteId ID del estudiante
+     * @return array Lista de materias
+     */
+    public function obtenerMateriasEstudiante($estudianteId) {
+        $sql = "SELECT DISTINCT m.* 
+                FROM materias m
+                INNER JOIN grupo_materia gm ON m.id = gm.materia_id
+                INNER JOIN estudiante_grupo eg ON gm.grupo_id = eg.grupo_id
+                WHERE eg.estudiante_id = ? AND m.activo = 1
+                ORDER BY m.nombre";
+                
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $estudianteId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
 }

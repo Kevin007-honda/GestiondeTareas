@@ -137,6 +137,24 @@ class Usuario {
         }
     }
 
+    public function getUserById($id) {
+        try {
+            $stmt = $this->conn->prepare(
+                "SELECT u.*, r.nombre as rol_nombre 
+                FROM usuarios u 
+                LEFT JOIN roles r ON u.rol_id = r.id 
+                WHERE u.id = ?"
+            );
+            $stmt->bind_param("i", $id);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            return $result->fetch_assoc();
+        } catch (Exception $e) {
+            error_log("Error obteniendo usuario por ID: " . $e->getMessage());
+            return null;
+        }
+    }
+
     public function obtenerProfesores() {
         $sql = "SELECT u.* FROM usuarios u 
                 INNER JOIN roles r ON u.rol_id = r.id 

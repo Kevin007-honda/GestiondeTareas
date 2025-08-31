@@ -22,7 +22,7 @@ if (!defined('ROOT_PATH')) {
                     </a>
                 </li>
                 <li>
-                    <a class="d-flex align-items-center" href="<?= BASE_URL ?>?page=notificationss&role=studentr">
+                    <a class="d-flex align-items-center" href="<?= BASE_URL ?>?page=notifications&role=student">
                         <i class="fa-solid fa-bell fa-fw"></i>
                         <span>Notificaciones</span>
                     </a>

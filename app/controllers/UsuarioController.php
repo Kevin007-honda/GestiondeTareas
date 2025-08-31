@@ -1,34 +1,73 @@
 <?php
 require_once($_SERVER['DOCUMENT_ROOT'] . '/GestiondeTareas/app/models/Usuario.php');
 
-class UsuarioController {
+class UsuarioController
+{
     private $usuarioModel;
 
-    public function __construct() {
-        $this->usuarioModel = new Usuario();
-    }
-
-    public function procesarAccion() {
-        if ($_SERVER['REQUEST_METHOD'] !== 'POST') return null;
-
-        $accion = $_POST['accion'] ?? '';
-        $resultado = match($accion) {
-            'crear' => $this->crearUsuario($_POST),
-            'actualizar' => $this->actualizarUsuario($_POST),
-            'eliminar' => $this->eliminarUsuario($_POST['id']),
-            'activar' => $this->activarUsuario($_POST['id']), // Nueva acción
-            default => ['error' => 'Acción no válida']
-        };
-
-        // Guardar el resultado en sessionStorage
-        if ($resultado) {
-            echo "<script>sessionStorage.setItem('operationResult', '" . json_encode($resultado) . "');</script>";
+    public function __construct()
+    {
+        try {
+            $this->usuarioModel = new Usuario();
+        } catch (Exception $e) {
+            error_log("Error al inicializar UsuarioController: " . $e->getMessage());
+            throw $e;
         }
-
-        return $resultado;
     }
 
-    private function crearUsuario($datos) {
+    public function procesarAccion()
+    {
+        try {
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') return null;
+
+            $accion = $_POST['accion'] ?? '';
+            $resultado = match ($accion) {
+                'crear' => $this->crearUsuario($_POST),
+                'actualizar' => $this->actualizarUsuario($_POST),
+                'eliminar' => $this->eliminarUsuario($_POST['id']),
+                'desactivar' => $this->eliminarUsuario($_POST['id']),
+                'activar' => $this->activarUsuario($_POST['id']),
+                default => ['error' => 'Acción no válida']
+            };
+
+            // CORREGIDO: Si es una petición AJAX, devolver JSON
+            if (
+                !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest'
+            ) {
+                header('Content-Type: application/json');
+                echo json_encode($resultado);
+                exit;
+            }
+
+            // Para peticiones normales, usar sessionStorage
+            if ($resultado) {
+                echo "<script>sessionStorage.setItem('operationResult', '" . json_encode($resultado) . "');</script>";
+            }
+
+            return $resultado;
+        } catch (Exception $e) {
+            error_log("Error al procesar acción de usuario: " . $e->getMessage());
+            $resultado = ['error' => 'Error al procesar la solicitud: ' . $e->getMessage()];
+
+            // Si es AJAX, devolver JSON
+            if (
+                !empty($_SERVER['HTTP_X_REQUESTED_WITH']) &&
+                strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) == 'xmlhttprequest'
+            ) {
+                header('Content-Type: application/json');
+                echo json_encode($resultado);
+                exit;
+            }
+
+            echo "<script>sessionStorage.setItem('operationResult', '" . json_encode($resultado) . "');</script>";
+            return $resultado;
+        }
+    }
+
+    // ...resto de métodos igual...
+    private function crearUsuario($datos)
+    {
         // Validaciones básicas
         $camposRequeridos = ['username', 'password', 'email', 'nombre', 'apellidos', 'rol_id'];
         foreach ($camposRequeridos as $campo) {
@@ -63,7 +102,8 @@ class UsuarioController {
         }
     }
 
-    private function actualizarUsuario($datos) {
+    private function actualizarUsuario($datos)
+    {
         if (empty($datos['id'])) {
             return ['error' => 'ID de usuario no proporcionado'];
         }
@@ -91,7 +131,8 @@ class UsuarioController {
         }
     }
 
-    private function eliminarUsuario($id) {
+    private function eliminarUsuario($id)
+    {
         if (empty($id)) {
             return ['error' => 'ID de usuario no proporcionado'];
         }
@@ -107,7 +148,8 @@ class UsuarioController {
         }
     }
 
-    private function activarUsuario($id) {
+    private function activarUsuario($id)
+    {
         if (empty($id)) {
             return ['error' => 'ID de usuario no proporcionado'];
         }
@@ -123,7 +165,8 @@ class UsuarioController {
         }
     }
 
-    public function getConteoUsuariosPorRol() {
+    public function getConteoUsuariosPorRol()
+    {
         try {
             return $this->usuarioModel->getConteoUsuariosPorRol();
         } catch (Exception $e) {

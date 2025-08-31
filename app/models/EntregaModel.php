@@ -34,5 +34,41 @@ class EntregaModel {
         $stmt->bind_param("i", $tareaId);
         return $stmt->execute();
     }
+
+    // Añadir métodos para estadísticas
+
+    /**
+     * Cuenta el número total de entregas en el sistema
+     */
+    public function contarTodasLasEntregas() {
+        $query = "SELECT COUNT(*) as total FROM entregas_tarea"; // Ajustar nombre de tabla según tu BD
+        $result = $this->db->query($query);
+        $row = $result->fetch_assoc();
+        return $row['total'] ?? 0;
+    }
+
+    /**
+     * Cuenta el número de entregas que ya han sido calificadas
+     */
+    public function contarEntregasCalificadas() {
+        // Revisar en la base de datos si la columna se llama calificacion o nota
+        $sql = "DESCRIBE entregas_tarea";
+        $result = $this->db->query($sql);
+        $columnName = "calificacion"; // Nombre por defecto
+        
+        if ($result) {
+            while ($row = $result->fetch_assoc()) {
+                if ($row['Field'] === 'nota') {
+                    $columnName = "nota";
+                    break;
+                }
+            }
+        }
+        
+        $query = "SELECT COUNT(*) as total FROM entregas_tarea WHERE $columnName IS NOT NULL";
+        $result = $this->db->query($query);
+        $row = $result->fetch_assoc();
+        return $row['total'] ?? 0;
+    }
 }
 ?>

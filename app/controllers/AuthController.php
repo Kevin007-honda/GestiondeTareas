@@ -6,9 +6,14 @@ class AuthController {
     private $usuario;
 
     public function __construct() {
-        $this->usuario = new Usuario();
-        if (session_status() === PHP_SESSION_NONE) {
-            session_start();
+        try {
+            $this->usuario = new Usuario();
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+        } catch (Exception $e) {
+            error_log("Error al inicializar AuthController: " . $e->getMessage());
+            throw $e;
         }
     }
 
@@ -44,26 +49,51 @@ class AuthController {
     }
 
     public function logout() {
-        session_start();
-        session_destroy();
-        header('Location: ' . BASE_URL . '/app/views/auth/login.php');
-        exit();
-    }
-
-    public function checkAuth() {
-        if (!isset($_SESSION['user_id'])) {
+        try {
+            if (session_status() === PHP_SESSION_NONE) {
+                session_start();
+            }
+            session_destroy();
+            header('Location: ' . BASE_URL . '/app/views/auth/login.php');
+            exit();
+        } catch (Exception $e) {
+            error_log("Error en logout: " . $e->getMessage());
+            // Redireccionar de todas formas para salir
             header('Location: ' . BASE_URL . '/app/views/auth/login.php');
             exit();
         }
-        return true;
+    }
+
+    public function checkAuth() {
+        try {
+            if (!isset($_SESSION['user_id'])) {
+                header('Location: ' . BASE_URL . '/app/views/auth/login.php');
+                exit();
+            }
+            return true;
+        } catch (Exception $e) {
+            error_log("Error en checkAuth: " . $e->getMessage());
+            header('Location: ' . BASE_URL . '/app/views/auth/login.php');
+            exit();
+        }
     }
 
     public function getCurrentUser() {
-        return [
-            'id' => $_SESSION['user_id'] ?? null,
-            'nombre_completo' => $_SESSION['nombre_completo'] ?? null,
-            'email' => $_SESSION['email'] ?? null,
-            'rol' => $_SESSION['rol'] ?? null
-        ];
+        try {
+            return [
+                'id' => $_SESSION['user_id'] ?? null,
+                'nombre_completo' => $_SESSION['nombre_completo'] ?? null,
+                'email' => $_SESSION['email'] ?? null,
+                'rol' => $_SESSION['rol'] ?? null
+            ];
+        } catch (Exception $e) {
+            error_log("Error en getCurrentUser: " . $e->getMessage());
+            return [
+                'id' => null,
+                'nombre_completo' => null,
+                'email' => null,
+                'rol' => null
+            ];
+        }
     }
 }

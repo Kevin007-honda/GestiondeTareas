@@ -2,6 +2,13 @@
 require_once($_SERVER['DOCUMENT_ROOT'] . '/GestiondeTareas/app/config/dirs.php');
 require_once(CONTROLLERS_PATH . '/AuthController.php');
 
+// Asegurarse de cargar TareaController antes de usarlo
+if (file_exists(CONTROLLERS_PATH . '/TareaController.php')) {
+    require_once(CONTROLLERS_PATH . '/TareaController.php');
+} else {
+    die('Error: No se encuentra el archivo TareaController.php');
+}
+
 $auth = new AuthController();
 
 // Verificar si hay sesión activa
@@ -12,9 +19,27 @@ if (!isset($_SESSION['user_id'])) {
 
 $currentUser = $auth->getCurrentUser();
 
+// Procesar acciones específicas
+if (isset($_GET['action'])) {
+    switch ($_GET['action']) {
+        case 'markAllAsRead':
+            if (isset($_SESSION['user_id'])) {
+                $tareaController = new TareaController();
+                $tareaController->marcarTodasComoLeidas($_SESSION['user_id']);
+                // Redirigir a la página anterior o a la de notificaciones
+                header('Location: ' . $_SERVER['HTTP_REFERER'] ?? BASE_URL . '?page=notifications');
+                exit();
+            }
+            break;
+
+            // Más acciones según sea necesario
+    }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -48,8 +73,8 @@ $currentUser = $auth->getCurrentUser();
 <body>
     <div class="dashboard d-flex">
         <!-- Sidebar dinámico basado en el rol -->
-        <?php 
-        switch(strtolower($_SESSION['rol'])) {
+        <?php
+        switch (strtolower($_SESSION['rol'])) {
             case 'estudiante':
                 require_once(LAYOUTS_PATH . '/sidebar_student.php');
                 break;
@@ -61,7 +86,7 @@ $currentUser = $auth->getCurrentUser();
                 break;
         }
         ?>
-        
+
         <div class="content">
             <!-- Include Header -->
             <?php require_once(LAYOUTS_PATH . '/header.php'); ?>
@@ -69,13 +94,13 @@ $currentUser = $auth->getCurrentUser();
             <!-- Content basado en el rol y la página -->
             <?php
             $page = isset($_GET['page']) ? $_GET['page'] : 'dashboard';
-            
+
             // Ajustar la página según el rol del usuario
             if ($_SESSION['rol'] === 'estudiante' && $page === 'task_management') {
                 $page = 'task_visualization';
             }
 
-            switch($page) {
+            switch ($page) {
                 // Vistas de Profesor
                 case 'dashboard':
                     if ($_SESSION['rol'] === 'administrador') {
@@ -93,11 +118,16 @@ $currentUser = $auth->getCurrentUser();
                 case 'assigned_tasks':
                     require_once(VIEWS_PATH . '/teacher/assigned_tasks.php');
                     break;
+                case 'task_submissions':
+                    // Si no hay ID específico, mostrar todas las entregas
+                    if (!isset($_GET['tarea_id'])) {
+                        require_once(VIEWS_PATH . '/teacher/all_task_submissions.php');
+                    } else {
+                        require_once(VIEWS_PATH . '/teacher/task_submissions.php');
+                    }
+                    break;
                 case 'notifications':
                     require_once(VIEWS_PATH . '/teacher/notifications.php');
-                    break;
-                case 'reports':
-                    require_once(VIEWS_PATH . '/teacher/reports.php');
                     break;
 
                 // Vistas de Estudiante
@@ -135,9 +165,9 @@ $currentUser = $auth->getCurrentUser();
                         require_once(VIEWS_PATH . '/admin/dashboard.php');
                     }
                     break;
-                
+
                 default:
-                    $welcomeMessage = match($_SESSION['rol']) {
+                    $welcomeMessage = match ($_SESSION['rol']) {
                         'estudiante' => 'BIENVENIDO AL SISTEMA INTERACTIVO PARA ESTUDIANTES',
                         'administrador' => 'BIENVENIDO AL PANEL DE ADMINISTRACIÓN',
                         'profesor' => 'BIENVENIDO AL SISTEMA INTERACTIVO PARA PROFESORES',
@@ -162,12 +192,12 @@ $currentUser = $auth->getCurrentUser();
     <script>
         // Inicializar todos los tooltips y popovers de Bootstrap
         var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        var tooltipList = tooltipTriggerList.map(function(tooltipTriggerEl) {
             return new bootstrap.Tooltip(tooltipTriggerEl);
         });
 
         var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'));
-        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        var dropdownList = dropdownElementList.map(function(dropdownToggleEl) {
             return new bootstrap.Dropdown(dropdownToggleEl);
         });
 
@@ -178,27 +208,27 @@ $currentUser = $auth->getCurrentUser();
     </script>
     <!-- Custom SweetAlert Functions -->
     <script>
-    function showAlert(title, text, icon) {
-        Swal.fire({
-            title: title,
-            text: text,
-            icon: icon,
-            confirmButtonColor: '#0075ff'
-        });
-    }
+        function showAlert(title, text, icon) {
+            Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                confirmButtonColor: '#0075ff'
+            });
+        }
 
-    function confirmAction(title, text, icon) {
-        return Swal.fire({
-            title: title,
-            text: text,
-            icon: icon,
-            showCancelButton: true,
-            confirmButtonColor: '#0075ff',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Confirmar',
-            cancelButtonText: 'Cancelar'
-        });
-    }
+        function confirmAction(title, text, icon) {
+            return Swal.fire({
+                title: title,
+                text: text,
+                icon: icon,
+                showCancelButton: true,
+                confirmButtonColor: '#0075ff',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Confirmar',
+                cancelButtonText: 'Cancelar'
+            });
+        }
     </script>
 </body>
 

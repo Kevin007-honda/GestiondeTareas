@@ -17,7 +17,11 @@ if (empty($email) || empty($password)) {
     exit;
 }
 
-$auth = new AuthController();
-$result = $auth->login($email, $password);
-
-echo json_encode($result);
+try {
+    $auth = new AuthController();
+    $result = $auth->login($email, $password);
+    echo json_encode($result);
+} catch (Exception $e) {
+    error_log("Error en el proceso de login: " . $e->getMessage());
+    echo json_encode(['success' => false, 'message' => 'Error al procesar la solicitud']);
+}

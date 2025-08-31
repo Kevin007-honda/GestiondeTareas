@@ -7,11 +7,25 @@ if (!defined('ROOT_PATH')) {
 require_once(CONTROLLERS_PATH . '/UsuarioController.php');
 require_once(CONTROLLERS_PATH . '/GrupoController.php');
 require_once(CONTROLLERS_PATH . '/MateriaController.php');
+require_once(CONTROLLERS_PATH . '/TareaController.php');
+require_once(CONTROLLERS_PATH . '/GestionTareaController.php');
 
 // Inicializar los controladores
 $usuarioController = new UsuarioController();
 $grupoController = new GrupoController();
 $materiaController = new MateriaController();
+$tareaController = new TareaController();
+$gestionTareaController = new GestionTareaController();
+
+// Cargar los modelos necesarios
+require_once(MODELS_PATH . '/EstadoModel.php');
+require_once(MODELS_PATH . '/EntregaModel.php');
+require_once(MODELS_PATH . '/TareaModel.php');
+
+// Inicializar modelos para estadísticas
+$estadoModel = new EstadoModel();
+$entregaModel = new EntregaModel();
+$tareaModel = new TareaModel();
 
 // Obtener datos de usuarios
 $usuarioModel = new Usuario();
@@ -83,9 +97,60 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
     $statsMaterias['inactivas'] = $statsMaterias['total'];
 }
 
-// Depuración (opcional)
-// echo "<pre>Grupos: "; print_r($statsGrupos); echo "</pre>";
-// echo "<pre>Materias: "; print_r($statsMaterias); echo "</pre>";
+// Obtener estadísticas de tareas
+$totalTareas = $tareaModel->contarTodasLasTareas();
+$tareasActivas = $tareaModel->contarTareasActivas();
+$tareasCompletadas = $tareaModel->contarTareasPorEstado('Completada');
+$tareasPendientes = $tareaModel->contarTareasPorEstado('Pendiente');
+
+// Obtener estadísticas de entregas
+$totalEntregas = $entregaModel->contarTodasLasEntregas();
+$entregasCalificadas = $entregaModel->contarEntregasCalificadas();
+$entregasPendientes = $totalEntregas - $entregasCalificadas;
+
+// Obtener estados de tareas para gráfico
+$estadosTareas = $estadoModel->obtenerEstadosConConteo();
+
+// Verificar si hay datos en estadosTareas, si está vacío crear un array por defecto
+// para evitar errores en el gráfico
+if (empty($estadosTareas)) {
+    $estadosTareas = [
+        ['estado' => 'Pendiente', 'conteo' => 0],
+        ['estado' => 'En progreso', 'conteo' => 0],
+        ['estado' => 'Completada', 'conteo' => 0],
+        ['estado' => 'Retrasada', 'conteo' => 0]
+    ];
+}
+
+// Preparar los datos de estados para el gráfico
+$estadosLabels = array_column($estadosTareas, 'estado');
+$estadosConteo = array_column($estadosTareas, 'conteo');
+
+// Preparar colores para el gráfico de estados
+$colorMap = [
+    'Pendiente' => 'rgba(255, 193, 7, 0.8)',  // Amarillo para pendiente
+    'En progreso' => 'rgba(23, 162, 184, 0.8)',  // Azul para en progreso
+    'Completada' => 'rgba(40, 167, 69, 0.8)',  // Verde para completada
+    'Retrasada' => 'rgba(220, 53, 69, 0.8)',   // Rojo para retrasada
+    'default' => 'rgba(108, 117, 125, 0.8)'    // Gris para otros estados
+];
+
+$colorBorderMap = [
+    'Pendiente' => 'rgba(255, 193, 7, 1)',
+    'En progreso' => 'rgba(23, 162, 184, 1)',
+    'Completada' => 'rgba(40, 167, 69, 1)',
+    'Retrasada' => 'rgba(220, 53, 69, 1)',
+    'default' => 'rgba(108, 117, 125, 1)'
+];
+
+$estadosBackgroundColors = [];
+$estadosBorderColors = [];
+
+foreach ($estadosLabels as $estado) {
+    $estadosBackgroundColors[] = $colorMap[$estado] ?? $colorMap['default'];
+    $estadosBorderColors[] = $colorBorderMap[$estado] ?? $colorBorderMap['default'];
+}
+
 ?>
 
 <!-- Incluir el CSS específico para el dashboard admin -->
@@ -100,7 +165,7 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
             <div class="card border-0 shadow-sm">
                 <div class="card-body py-4">
                     <h2 class="fs-4 fw-bold text-secondary mb-0">Bienvenido al Panel de Administración</h2>
-                    <p class="text-muted mb-0">Gestiona usuarios, grupos y materias del sistema</p>
+                    <p class="text-muted mb-0">Gestiona usuarios, grupos, materias y tareas del sistema</p>
                 </div>
             </div>
         </div>
@@ -224,6 +289,106 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
         </div>
     </div>
 
+    <!-- Tarjetas de Tareas -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="mb-0 fw-semibold">Estadísticas de Tareas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
+                        <!-- Tarjeta de Tareas Totales -->
+                        <div class="col">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Total Tareas</h6>
+                                        <div class="icon-box-sm bg-primary bg-opacity-10 text-primary rounded-circle">
+                                            <i class="fas fa-tasks fa-fw"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="mb-0 fw-bold"><?= $totalTareas ?></h3>
+                                    <div class="small text-muted"><?= $tareasActivas ?> tareas activas</div>
+                                </div>
+                                <div class="card-footer border-0 bg-transparent pt-0">
+                                    <a href="<?= BASE_URL ?>?page=tareas_management&role=admin" class="btn btn-sm btn-light w-100">
+                                        Ver Tareas <i class="fas fa-arrow-right ms-1"></i>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tarjeta de Tareas Completadas -->
+                        <div class="col">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Tareas Completadas</h6>
+                                        <div class="icon-box-sm bg-success bg-opacity-10 text-success rounded-circle">
+                                            <i class="fas fa-check-circle fa-fw"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="mb-0 fw-bold"><?= $tareasCompletadas ?></h3>
+                                    <?php $porcentajeCompletadas = ($totalTareas > 0) ? ($tareasCompletadas / $totalTareas) * 100 : 0; ?>
+                                    <div class="progress mt-2" style="height: 5px;">
+                                        <div class="progress-bar bg-success" style="width: <?= $porcentajeCompletadas ?>%" 
+                                             aria-valuenow="<?= $porcentajeCompletadas ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="small text-muted mt-1"><?= number_format($porcentajeCompletadas, 1) ?>% completadas</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tarjeta de Tareas Pendientes -->
+                        <div class="col">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Tareas Pendientes</h6>
+                                        <div class="icon-box-sm bg-warning bg-opacity-10 text-warning rounded-circle">
+                                            <i class="fas fa-clock fa-fw"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="mb-0 fw-bold"><?= $tareasPendientes ?></h3>
+                                    <?php $porcentajePendientes = ($totalTareas > 0) ? ($tareasPendientes / $totalTareas) * 100 : 0; ?>
+                                    <div class="progress mt-2" style="height: 5px;">
+                                        <div class="progress-bar bg-warning" style="width: <?= $porcentajePendientes ?>%" 
+                                             aria-valuenow="<?= $porcentajePendientes ?>" aria-valuemin="0" aria-valuemax="100"></div>
+                                    </div>
+                                    <div class="small text-muted mt-1"><?= number_format($porcentajePendientes, 1) ?>% pendientes</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Tarjeta de Entregas -->
+                        <div class="col">
+                            <div class="card border h-100">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Entregas</h6>
+                                        <div class="icon-box-sm bg-info bg-opacity-10 text-info rounded-circle">
+                                            <i class="fas fa-file-upload fa-fw"></i>
+                                        </div>
+                                    </div>
+                                    <h3 class="mb-0 fw-bold"><?= $totalEntregas ?></h3>
+                                    <div class="d-flex justify-content-between mt-2 small">
+                                        <span class="text-success">
+                                            <i class="fas fa-check-square me-1"></i><?= $entregasCalificadas ?> calificadas
+                                        </span>
+                                        <span class="text-warning">
+                                            <i class="fas fa-hourglass-half me-1"></i><?= $entregasPendientes ?> pendientes
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Gráficos y Estadísticas -->
     <div class="row g-3 mb-4">
         <!-- Distribución de Usuarios -->
@@ -237,9 +402,23 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
                 </div>
             </div>
         </div>
-        <!-- Grupos y Materias -->
+        <!-- Estados de Tareas -->
         <div class="col-lg-6">
             <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-transparent py-3">
+                    <h5 class="mb-0 fw-semibold">Estados de Tareas</h5>
+                </div>
+                <div class="card-body">
+                    <div id="taskStatusChartContainer" style="height: 300px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Grupos y Materias -->
+    <div class="row g-3 mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
                 <div class="card-header bg-transparent py-3">
                     <h5 class="mb-0 fw-semibold">Grupos y Materias</h5>
                 </div>
@@ -359,7 +538,7 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
                     <h5 class="mb-0 fw-semibold">Accesos Rápidos</h5>
                 </div>
                 <div class="card-body">
-                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
                         <div class="col">
                             <a href="<?= BASE_URL ?>?page=user_management&role=admin" class="card hover-effect text-decoration-none h-100">
                                 <div class="card-body d-flex align-items-center">
@@ -368,7 +547,7 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
                                     </div>
                                     <div>
                                         <h5 class="mb-0 text-dark">Gestión de Usuarios</h5>
-                                        <span class="text-muted">Administrar perfiles de usuarios</span>
+                                        <span class="text-muted">Administrar perfiles</span>
                                     </div>
                                 </div>
                             </a>
@@ -395,6 +574,19 @@ if ($statsMaterias['activas'] > $statsMaterias['total']) {
                                     <div>
                                         <h5 class="mb-0 text-dark">Gestión de Materias</h5>
                                         <span class="text-muted">Administrar asignaturas</span>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col">
+                            <a href="<?= BASE_URL ?>?page=tareas_management&role=admin" class="card hover-effect text-decoration-none h-100">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="icon-box bg-warning bg-opacity-10 text-warning me-3">
+                                        <i class="fas fa-tasks fa-fw"></i>
+                                    </div>
+                                    <div>
+                                        <h5 class="mb-0 text-dark">Gestión de Tareas</h5>
+                                        <span class="text-muted">Administrar tareas</span>
                                     </div>
                                 </div>
                             </a>
@@ -433,6 +625,42 @@ document.addEventListener('DOMContentLoaded', function() {
                         'rgba(255, 193, 7, 1)',
                         'rgba(23, 162, 184, 1)'
                     ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 12,
+                            padding: 15,
+                            font: {
+                                size: 12
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Gráfico de estados de tareas
+    if (document.getElementById('taskStatusChartContainer')) {
+        const ctx = document.createElement('canvas');
+        ctx.id = 'taskStatusChart';
+        document.getElementById('taskStatusChartContainer').appendChild(ctx);
+        
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: <?= json_encode($estadosLabels) ?>,
+                datasets: [{
+                    data: <?= json_encode($estadosConteo) ?>,
+                    backgroundColor: <?= json_encode($estadosBackgroundColors) ?>,
+                    borderColor: <?= json_encode($estadosBorderColors) ?>,
                     borderWidth: 1
                 }]
             },

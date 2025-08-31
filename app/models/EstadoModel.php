@@ -38,5 +38,18 @@ class EstadoModel {
         
         return $result->fetch_assoc();
     }
+
+    /**
+     * Obtiene los estados con el conteo de tareas en cada uno
+     */
+    public function obtenerEstadosConConteo() {
+        $query = "SELECT e.nombre as estado, COUNT(t.id) as conteo 
+                  FROM estados_tarea e 
+                  LEFT JOIN tareas t ON e.id = t.estado_id 
+                  GROUP BY e.id, e.nombre
+                  ORDER BY conteo DESC";
+        $result = $this->conn->query($query);
+        return $result->fetch_all(MYSQLI_ASSOC);
+    }
 }
 ?>

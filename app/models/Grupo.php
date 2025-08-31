@@ -279,4 +279,20 @@ class Grupo {
         
         return $result->fetch_all(MYSQLI_ASSOC);
     }
+
+    /**
+     * Cuenta el número de estudiantes en un grupo específico
+     * @param int $grupoId ID del grupo
+     * @return int Número de estudiantes en el grupo
+     */
+    public function contarEstudiantesPorGrupo($grupoId) {
+        $sql = "SELECT COUNT(*) AS total FROM estudiante_grupo WHERE grupo_id = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $grupoId);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        
+        return $row['total'] ?? 0;
+    }
 }
